@@ -3,6 +3,7 @@ package collector
 import (
 	"fmt"
 	"strconv"
+	"math/big"
 
 	nearapi "github.com/bisontrails/near-exporter/client"
 	"github.com/prometheus/client_golang/prometheus"
@@ -19,6 +20,7 @@ type NodeRpcMetrics struct {
 	epochStartHeightDesc      *prometheus.Desc
 	blockHeightExternalDesc   *prometheus.Desc
 	blockHeightInternalDesc   *prometheus.Desc
+	blockLagDesc   						*prometheus.Desc
 	blocksMissedDesc          *prometheus.Desc
 	syncingDesc               *prometheus.Desc
 	versionBuildDesc          *prometheus.Desc
@@ -80,6 +82,12 @@ func NewNodeRpcMetrics(
 			nil,
 		),
 		blocksMissedDesc: prometheus.NewDesc(
+			"near_block_lag",
+			"The number of blocks the internal node is behind the external node.",
+			nil,
+			nil,
+		),
+		blocksMissedDesc: prometheus.NewDesc(
 			"near_blocks_missed",
 			"The number of blocks missed while validating in the active set.",
 			nil,
@@ -132,6 +140,7 @@ func (collector *NodeRpcMetrics) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.epochStartHeightDesc
 	ch <- collector.blockHeightExternalDesc
 	ch <- collector.blockHeightInternalDesc
+	ch <- collector.blockLagDesc
 	ch <- collector.blocksMissedDesc
 	ch <- collector.syncingDesc
 	ch <- collector.versionBuildDesc
@@ -169,6 +178,12 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 
 	extBlockHeight := srExt.Status.SyncInfo.LatestBlockHeight
 	ch <- prometheus.MustNewConstMetric(collector.blockHeightExternalDesc, prometheus.GaugeValue, float64(extBlockHeight))
+
+	bigIntHeight := big.NewInt(intBlockHeight)
+	bigExtHeight := big.NewInt(extBlockHeight)
+
+	blockLag := big.NewInt(0).Sub(bigExtHeight - bigIntHeight)
+	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, float64(blockLag))
 
 	versionBuildInt := HashString(sr.Status.Version.Build)
 	ch <- prometheus.MustNewConstMetric(collector.versionBuildDesc, prometheus.GaugeValue, float64(versionBuildInt), sr.Status.Version.Version, sr.Status.Version.Build)
