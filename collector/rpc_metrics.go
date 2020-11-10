@@ -184,7 +184,8 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 
 	blockLag := big.NewInt(0).Sub(bigExtHeight, bigIntHeight)
 	blockLagFloat := new(big.Float).SetInt(blockLag)
-	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, blockLagFloat.Float64())
+	blockLagFloat64, _ := blockLagFloat.Float64()
+	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, blockLagFloat64)
 
 	versionBuildInt := HashString(sr.Status.Version.Build)
 	ch <- prometheus.MustNewConstMetric(collector.versionBuildDesc, prometheus.GaugeValue, float64(versionBuildInt), sr.Status.Version.Version, sr.Status.Version.Build)
