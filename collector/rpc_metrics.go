@@ -3,8 +3,9 @@ package collector
 import (
 	"fmt"
 	"strconv"
+	"math/big"
 
-	nearapi "github.com/masknetgoal634/near-exporter/client"
+	nearapi "github.com/bisontrails/near-exporter/client"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -17,8 +18,10 @@ type NodeRpcMetrics struct {
 	seatPriceDesc             *prometheus.Desc
 	currentStakeDesc          *prometheus.Desc
 	epochStartHeightDesc      *prometheus.Desc
-	blockNumberDesc           *prometheus.Desc
-	blockLagDesc              *prometheus.Desc
+	blockHeightExternalDesc   *prometheus.Desc
+	blockHeightInternalDesc   *prometheus.Desc
+	blockLagDesc   						*prometheus.Desc
+	blocksMissedDesc          *prometheus.Desc
 	syncingDesc               *prometheus.Desc
 	versionBuildDesc          *prometheus.Desc
 	currentValidatorStakeDesc *prometheus.Desc
@@ -66,16 +69,27 @@ func NewNodeRpcMetrics(
 			nil,
 			nil,
 		),
-
-		blockNumberDesc: prometheus.NewDesc(
-			"near_block_number",
-			"The head of the NEAR chain",
+		blockHeightExternalDesc: prometheus.NewDesc(
+			"near_block_height_external",
+			"The head of the NEAR chain according to the external node",
+			nil,
+			nil,
+		),
+		blockHeightInternalDesc: prometheus.NewDesc(
+			"near_block_height_internal",
+			"The head of the NEAR chain according to the internal node",
 			nil,
 			nil,
 		),
 		blockLagDesc: prometheus.NewDesc(
 			"near_block_lag",
-			"The number of blocks behind rpc endpoint block head.",
+			"The number of blocks the internal node is behind the external node.",
+			nil,
+			nil,
+		),
+		blocksMissedDesc: prometheus.NewDesc(
+			"near_blocks_missed",
+			"The number of blocks missed while validating in the active set.",
 			nil,
 			nil,
 		),
@@ -124,8 +138,10 @@ func (collector *NodeRpcMetrics) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.seatPriceDesc
 	ch <- collector.currentStakeDesc
 	ch <- collector.epochStartHeightDesc
-	ch <- collector.blockNumberDesc
+	ch <- collector.blockHeightExternalDesc
+	ch <- collector.blockHeightInternalDesc
 	ch <- collector.blockLagDesc
+	ch <- collector.blocksMissedDesc
 	ch <- collector.syncingDesc
 	ch <- collector.versionBuildDesc
 	ch <- collector.currentValidatorStakeDesc
@@ -146,6 +162,7 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.NewInvalidMetric(collector.versionBuildDesc, err)
 		return
 	}
+	
 
 	syn := sr.Status.SyncInfo.Syncing
 	var isSyncing int
@@ -156,23 +173,32 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(collector.syncingDesc, prometheus.GaugeValue, float64(isSyncing))
 
-	blockHeight := sr.Status.SyncInfo.LatestBlockHeight
-	ch <- prometheus.MustNewConstMetric(collector.blockNumberDesc, prometheus.GaugeValue, float64(blockHeight))
+	intBlockHeight := sr.Status.SyncInfo.LatestBlockHeight
+	ch <- prometheus.MustNewConstMetric(collector.blockHeightInternalDesc, prometheus.GaugeValue, float64(intBlockHeight))
 
-	blockLag := srExt.Status.SyncInfo.LatestBlockHeight - sr.Status.SyncInfo.LatestBlockHeight
-	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, float64(blockLag))
+	extBlockHeight := srExt.Status.SyncInfo.LatestBlockHeight
+	ch <- prometheus.MustNewConstMetric(collector.blockHeightExternalDesc, prometheus.GaugeValue, float64(extBlockHeight))
+
+	bigIntHeight := new(big.Int).SetUint64(intBlockHeight)
+	bigExtHeight := new(big.Int).SetUint64(extBlockHeight)
+
+	blockLag := big.NewInt(0).Sub(bigExtHeight, bigIntHeight)
+	blockLagFloat64, _ := new(big.Float).SetInt(blockLag).Float64()
+	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, blockLagFloat64)
 
 	versionBuildInt := HashString(sr.Status.Version.Build)
 	ch <- prometheus.MustNewConstMetric(collector.versionBuildDesc, prometheus.GaugeValue, float64(versionBuildInt), sr.Status.Version.Version, sr.Status.Version.Build)
 
-	r, err := collector.internalClient.Get("validators", []uint64{blockHeight})
+	r, err := collector.internalClient.Get("validators", []uint64{intBlockHeight})
 	if err != nil {
 		ch <- prometheus.NewInvalidMetric(collector.epochBlockBroducedDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.epochBlockExpectedDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.seatPriceDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.currentStakeDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.epochStartHeightDesc, err)
-		ch <- prometheus.NewInvalidMetric(collector.blockNumberDesc, err)
+		ch <- prometheus.NewInvalidMetric(collector.blockHeightExternalDesc, err)
+		ch <- prometheus.NewInvalidMetric(collector.blockHeightInternalDesc, err)
+		ch <- prometheus.NewInvalidMetric(collector.blocksMissedDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.syncingDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.versionBuildDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.currentValidatorStakeDesc, err)
@@ -205,6 +231,7 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(collector.epochBlockBroducedDesc, prometheus.GaugeValue, pb)
 	ch <- prometheus.MustNewConstMetric(collector.epochBlockExpectedDesc, prometheus.GaugeValue, eb)
+	ch <- prometheus.MustNewConstMetric(collector.blocksMissedDesc, prometheus.GaugeValue, eb - pb)
 	ch <- prometheus.MustNewConstMetric(collector.seatPriceDesc, prometheus.GaugeValue, seatPrice)
 	ch <- prometheus.MustNewConstMetric(collector.currentStakeDesc, prometheus.GaugeValue, currentStake)
 
