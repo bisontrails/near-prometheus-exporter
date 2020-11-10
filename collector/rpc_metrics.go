@@ -81,7 +81,7 @@ func NewNodeRpcMetrics(
 			nil,
 			nil,
 		),
-		blocksMissedDesc: prometheus.NewDesc(
+		blockLagDesc: prometheus.NewDesc(
 			"near_block_lag",
 			"The number of blocks the internal node is behind the external node.",
 			nil,
@@ -184,7 +184,7 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 
 	blockLag := big.NewInt(0).Sub(bigExtHeight, bigIntHeight)
 	blockLagFloat := new(big.Float).SetInt(blockLag)
-	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, float64(blockLagFloat))
+	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, blockLagFloat.Float64())
 
 	versionBuildInt := HashString(sr.Status.Version.Build)
 	ch <- prometheus.MustNewConstMetric(collector.versionBuildDesc, prometheus.GaugeValue, float64(versionBuildInt), sr.Status.Version.Version, sr.Status.Version.Build)
