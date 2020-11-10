@@ -183,7 +183,8 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 	bigExtHeight := big.NewInt(extBlockHeight)
 
 	blockLag := big.NewInt(0).Sub(bigExtHeight - bigIntHeight)
-	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, float64(blockLag))
+	blockLagFloat := new(big.Float).setInt(blockLag)
+	ch <- prometheus.MustNewConstMetric(collector.blockLagDesc, prometheus.GaugeValue, float64(blockLagFloat))
 
 	versionBuildInt := HashString(sr.Status.Version.Build)
 	ch <- prometheus.MustNewConstMetric(collector.versionBuildDesc, prometheus.GaugeValue, float64(versionBuildInt), sr.Status.Version.Version, sr.Status.Version.Build)
