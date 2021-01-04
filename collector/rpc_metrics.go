@@ -23,9 +23,7 @@ type NodeRpcMetrics struct {
 	blocksMissedDesc        *prometheus.Desc
 	syncingDesc             *prometheus.Desc
 	versionBuildDesc        *prometheus.Desc
-	nextValidatorStakeDesc  *prometheus.Desc
 	prevEpochKickoutDesc    *prometheus.Desc
-	currentProposalsDesc    *prometheus.Desc
 }
 
 func NewNodeRpcMetrics(
