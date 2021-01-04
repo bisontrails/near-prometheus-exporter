@@ -2,7 +2,6 @@ package collector
 
 import (
 	"fmt"
-	"strconv"
 	"math/big"
 
 	nearapi "github.com/bisontrails/near-exporter/client"
@@ -10,24 +9,21 @@ import (
 )
 
 type NodeRpcMetrics struct {
-	accountId                 string
-	internalClient            *nearapi.Client
-	externalClient            *nearapi.Client
-	epochBlockBroducedDesc    *prometheus.Desc
-	epochBlockExpectedDesc    *prometheus.Desc
-	seatPriceDesc             *prometheus.Desc
-	currentStakeDesc          *prometheus.Desc
-	epochStartHeightDesc      *prometheus.Desc
-	blockHeightExternalDesc   *prometheus.Desc
-	blockHeightInternalDesc   *prometheus.Desc
-	blockLagDesc   						*prometheus.Desc
-	blocksMissedDesc          *prometheus.Desc
-	syncingDesc               *prometheus.Desc
-	versionBuildDesc          *prometheus.Desc
-	currentValidatorStakeDesc *prometheus.Desc
-	nextValidatorStakeDesc    *prometheus.Desc
-	prevEpochKickoutDesc      *prometheus.Desc
-	currentProposalsDesc      *prometheus.Desc
+	accountId               string
+	internalClient          *nearapi.Client
+	externalClient          *nearapi.Client
+	epochBlockBroducedDesc  *prometheus.Desc
+	epochBlockExpectedDesc  *prometheus.Desc
+	seatPriceDesc           *prometheus.Desc
+	currentStakeDesc        *prometheus.Desc
+	epochStartHeightDesc    *prometheus.Desc
+	blockHeightExternalDesc *prometheus.Desc
+	blockHeightInternalDesc *prometheus.Desc
+	blockLagDesc            *prometheus.Desc
+	blocksMissedDesc        *prometheus.Desc
+	syncingDesc             *prometheus.Desc
+	versionBuildDesc        *prometheus.Desc
+	prevEpochKickoutDesc    *prometheus.Desc
 }
 
 func NewNodeRpcMetrics(
@@ -105,24 +101,6 @@ func NewNodeRpcMetrics(
 			[]string{"version", "build"},
 			nil,
 		),
-		currentValidatorStakeDesc: prometheus.NewDesc(
-			"near_current_validator_stake",
-			"Current amount of validator stake",
-			[]string{"account_id", "public_key", "slashed", "shards", "num_produced_blocks", "num_expected_blocks"},
-			nil,
-		),
-		nextValidatorStakeDesc: prometheus.NewDesc(
-			"near_next_validator_stake",
-			"The next validators",
-			[]string{"account_id", "public_key", "shards"},
-			nil,
-		),
-		currentProposalsDesc: prometheus.NewDesc(
-			"near_current_proposals_stake",
-			"Current proposals",
-			[]string{"account_id", "public_key"},
-			nil,
-		),
 		prevEpochKickoutDesc: prometheus.NewDesc(
 			"near_prev_epoch_kickout",
 			"Near previous epoch kicked out validators",
@@ -144,9 +122,6 @@ func (collector *NodeRpcMetrics) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.blocksMissedDesc
 	ch <- collector.syncingDesc
 	ch <- collector.versionBuildDesc
-	ch <- collector.currentValidatorStakeDesc
-	ch <- collector.nextValidatorStakeDesc
-	ch <- collector.currentProposalsDesc
 	ch <- collector.prevEpochKickoutDesc
 }
 
@@ -162,7 +137,6 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.NewInvalidMetric(collector.versionBuildDesc, err)
 		return
 	}
-	
 
 	syn := sr.Status.SyncInfo.Syncing
 	var isSyncing int
@@ -201,9 +175,6 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.NewInvalidMetric(collector.blocksMissedDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.syncingDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.versionBuildDesc, err)
-		ch <- prometheus.NewInvalidMetric(collector.currentValidatorStakeDesc, err)
-		ch <- prometheus.NewInvalidMetric(collector.nextValidatorStakeDesc, err)
-		ch <- prometheus.NewInvalidMetric(collector.currentProposalsDesc, err)
 		ch <- prometheus.NewInvalidMetric(collector.prevEpochKickoutDesc, err)
 		return
 	}
@@ -212,9 +183,6 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 
 	var pb, eb, seatPrice, currentStake float64
 	for _, v := range r.Validators.CurrentValidators {
-
-		ch <- prometheus.MustNewConstMetric(collector.currentValidatorStakeDesc, prometheus.GaugeValue,
-			float64(GetStakeFromString(v.Stake)), v.AccountId, v.PublicKey, strconv.FormatBool(v.IsSlashed), strconv.Itoa(len(v.Shards)), strconv.Itoa(int(v.NumProducedBlocks)), strconv.Itoa(int(v.NumExpectedBlocks)))
 
 		t := GetStakeFromString(v.Stake)
 		if seatPrice == 0 {
@@ -231,19 +199,9 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(collector.epochBlockBroducedDesc, prometheus.GaugeValue, pb)
 	ch <- prometheus.MustNewConstMetric(collector.epochBlockExpectedDesc, prometheus.GaugeValue, eb)
-	ch <- prometheus.MustNewConstMetric(collector.blocksMissedDesc, prometheus.GaugeValue, eb - pb)
+	ch <- prometheus.MustNewConstMetric(collector.blocksMissedDesc, prometheus.GaugeValue, eb-pb)
 	ch <- prometheus.MustNewConstMetric(collector.seatPriceDesc, prometheus.GaugeValue, seatPrice)
 	ch <- prometheus.MustNewConstMetric(collector.currentStakeDesc, prometheus.GaugeValue, currentStake)
-
-	for _, v := range r.Validators.NextValidators {
-		ch <- prometheus.MustNewConstMetric(collector.nextValidatorStakeDesc, prometheus.GaugeValue,
-			float64(GetStakeFromString(v.Stake)), v.AccountId, v.PublicKey, strconv.Itoa(len(v.Shards)))
-	}
-
-	for _, v := range r.Validators.CurrentProposals {
-		ch <- prometheus.MustNewConstMetric(collector.currentProposalsDesc, prometheus.GaugeValue,
-			float64(GetStakeFromString(v.Stake)), v.AccountId, v.PublicKey)
-	}
 
 	for _, v := range r.Validators.PrevEpochKickOut {
 		if reason, ok := v.Reason["NotEnoughStake"]; ok {
