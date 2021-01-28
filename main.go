@@ -41,7 +41,6 @@ func main() {
 	})
 
 	http.Handle("/metrics", handler)
-	log.Println(listenAddress)
 	log.Fatal(http.ListenAndServe(listenAddress, nil))
 }
 
