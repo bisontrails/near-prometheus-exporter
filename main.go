@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,47 +10,28 @@ import (
 	"github.com/bisontrails/near-exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/viper"
 )
 
 func main() {
-	var version = "undefined"
-
-	flag.Usage = func() {
-		const (
-			usage = "Usage: near_exporter [option] [arg]\n\n" +
-				"Prometheus exporter for Near node metrics\n\n" +
-				"Options and arguments:\n"
-		)
-
-		fmt.Fprint(flag.CommandLine.Output(), usage)
-		flag.PrintDefaults()
-
-		os.Exit(2)
-	}
-
-	url := flag.String("url", "http://localhost:3030", "Near JSON-RPC URL")
-	externalRpc := flag.String("external-rpc", "https://rpc.betanet.near.org", "Near JSON-RPC URL")
-	addr := flag.String("addr", ":9333", "listen address")
-	accountId := flag.String("accountId", "test", "Validator account id")
-	ver := flag.Bool("v", false, "print version number and exit")
+	configureEnvironment()
+	internalURL := viper.GetString("INTERNAL_URL")
+	externalURL := viper.GetString("EXTERNAL_URL")
+	accountID := viper.GetString("ACCOUNT_ID")
+	listenAddress := viper.GetString("LISTEN_ADDRESS")
 
 	flag.Parse()
 	if len(flag.Args()) > 0 {
 		flag.Usage()
 	}
 
-	if *ver {
-		fmt.Println(version)
-		os.Exit(0)
-	}
+	client := nearapi.NewClient(internalURL)
 
-	client := nearapi.NewClient(*url)
-
-	devClient := nearapi.NewClient(*externalRpc)
+	devClient := nearapi.NewClient(externalURL)
 
 	registry := prometheus.NewPedanticRegistry()
 	registry.MustRegister(
-		collector.NewNodeRpcMetrics(client, devClient, *accountId),
+		collector.NewNodeRpcMetrics(client, devClient, accountID),
 		collector.NewDevNodeRpcMetrics(devClient),
 	)
 
@@ -61,5 +41,13 @@ func main() {
 	})
 
 	http.Handle("/metrics", handler)
-	log.Fatal(http.ListenAndServe(*addr, nil))
+	log.Fatal(http.ListenAndServe(listenAddress, nil))
+}
+
+func configureEnvironment() {
+	viper.AutomaticEnv()
+	viper.SetDefault("INTERNAL_URL", "http://localhost:3030")
+	viper.SetDefault("EXTERNAL_URL", "https://rpc.betanet.near.org")
+	viper.SetDefault("ACCOUNT_ID", "test")
+	viper.SetDefault("LISTEN_ADDRESS", ":9333")
 }
