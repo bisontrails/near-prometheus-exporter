@@ -20,13 +20,17 @@ func main() {
 	accountID := viper.GetString("ACCOUNT_ID")
 	listenAddress := viper.GetString("LISTEN_ADDRESS")
 
+	log.Printf("Internal URL: %s", internalURL)
+	log.Printf("External URL: %s", externalURL)
+	log.Printf("Account ID: %s", accountID)
+	log.Printf("Listen Address: %s", accountID)
+
 	flag.Parse()
 	if len(flag.Args()) > 0 {
 		flag.Usage()
 	}
 
 	client := nearapi.NewClient(internalURL)
-
 	devClient := nearapi.NewClient(externalURL)
 
 	registry := prometheus.NewPedanticRegistry()
