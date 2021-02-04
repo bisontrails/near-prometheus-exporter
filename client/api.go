@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 type StatusResult struct {
@@ -71,7 +73,8 @@ type Client struct {
 }
 
 func NewClient(endpoint string) *Client {
-	timeout := time.Duration(10 * time.Second)
+	timeoutSeconds := viper.GetInt("CLIENT_TIMEOUT_SECONDS")
+	timeout := time.Duration(time.Duration(timeoutSeconds) * time.Second)
 	httpClient := &http.Client{
 		Timeout: timeout,
 	}

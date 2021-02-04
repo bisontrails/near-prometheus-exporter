@@ -50,4 +50,5 @@ func configureEnvironment() {
 	viper.SetDefault("EXTERNAL_URL", "https://rpc.betanet.near.org")
 	viper.SetDefault("ACCOUNT_ID", "test")
 	viper.SetDefault("LISTEN_ADDRESS", ":9333")
+	viper.SetDefault("CLIENT_TIMEOUT_SECONDS", 30)
 }
