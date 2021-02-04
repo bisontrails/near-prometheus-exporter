@@ -74,7 +74,7 @@ type Client struct {
 
 func NewClient(endpoint string) *Client {
 	timeoutSeconds := viper.GetInt("CLIENT_TIMEOUT_SECONDS")
-	timeout := time.Duration(timeoutSeconds * time.Second)
+	timeout := time.Duration(time.Duration(timeoutSeconds) * time.Second)
 	httpClient := &http.Client{
 		Timeout: timeout,
 	}
