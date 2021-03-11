@@ -227,7 +227,6 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 
 func (collector *NodeRpcMetrics) RecordValidators() {
 	for {
-		fmt.Println("do the thing")
 		srExt, err := collector.externalClient.Get("status", nil)
 		if err != nil {
 			fmt.Println("Failed to get status from external endpoint.")
