@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -29,9 +30,13 @@ func main() {
 
 	devClient := nearapi.NewClient(externalURL)
 
+	rpcMetricCollector := collector.NewNodeRpcMetrics(client, devClient, accountID)
+	fmt.Println("do the thing")
+	go rpcMetricCollector.RecordValidators()
+
 	registry := prometheus.NewPedanticRegistry()
 	registry.MustRegister(
-		collector.NewNodeRpcMetrics(client, devClient, accountID),
+		rpcMetricCollector,
 		collector.NewDevNodeRpcMetrics(devClient),
 	)
 

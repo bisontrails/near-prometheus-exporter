@@ -3,6 +3,7 @@ package collector
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	nearapi "github.com/bisontrails/near-exporter/client"
 	"github.com/prometheus/client_golang/prometheus"
@@ -10,6 +11,7 @@ import (
 
 type NodeRpcMetrics struct {
 	accountId               string
+	currentValidatorData    nearapi.ValidatorsResult
 	internalClient          *nearapi.Client
 	externalClient          *nearapi.Client
 	epochBlockBroducedDesc  *prometheus.Desc
@@ -182,8 +184,7 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(collector.epochStartHeightDesc, prometheus.GaugeValue, float64(r.Validators.EpochStartHeight))
 
 	var pb, eb, seatPrice, currentStake float64
-	for _, v := range r.Validators.CurrentValidators {
-
+	for _, v := range collector.currentValidatorData.Validators.CurrentValidators {
 		t := GetStakeFromString(v.Stake)
 		if seatPrice == 0 {
 			seatPrice = t
@@ -197,6 +198,7 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 			currentStake = t
 		}
 	}
+
 	ch <- prometheus.MustNewConstMetric(collector.epochBlockBroducedDesc, prometheus.GaugeValue, pb)
 	ch <- prometheus.MustNewConstMetric(collector.epochBlockExpectedDesc, prometheus.GaugeValue, eb)
 	ch <- prometheus.MustNewConstMetric(collector.blocksMissedDesc, prometheus.GaugeValue, eb-pb)
@@ -220,5 +222,24 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 					float64(produced.(float64)), v.AccountId, "NotEnoughBlocks", fmt.Sprintf("%v", produced.(float64)), fmt.Sprintf("%v", val["expected"].(float64)), "", "")
 			}
 		}
+	}
+}
+
+func (collector *NodeRpcMetrics) RecordValidators() {
+	for {
+		fmt.Println("do the thing")
+		srExt, err := collector.externalClient.Get("status", nil)
+		if err != nil {
+			fmt.Println("Failed to get status from external endpoint.")
+		}
+
+		r, err := collector.externalClient.Get("validators", []uint64{srExt.Status.SyncInfo.LatestBlockHeight - 3})
+		if err != nil {
+			fmt.Println("Failed to get validators from external endpoint.")
+		}
+
+		collector.currentValidatorData = r.ValidatorsResult
+
+		time.Sleep(10 * time.Second)
 	}
 }
