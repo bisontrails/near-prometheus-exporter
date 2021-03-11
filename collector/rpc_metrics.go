@@ -227,12 +227,15 @@ func (collector *NodeRpcMetrics) Collect(ch chan<- prometheus.Metric) {
 
 func (collector *NodeRpcMetrics) RecordValidators() {
 	for {
-		srExt, err := collector.externalClient.Get("status", nil)
+		statusResponseExternal, err := collector.externalClient.Get("status", nil)
+		// we will query the validator info data from 3 blocks ago to avoid
+		// issues with querying seprate pods that may not have the newest block
+		safeLatestBlockHeight := statusResponseExternal.Status.SyncInfo.LatestBlockHeight - 3
 		if err != nil {
 			fmt.Println("Failed to get status from external endpoint.")
 		}
 
-		r, err := collector.externalClient.Get("validators", []uint64{srExt.Status.SyncInfo.LatestBlockHeight - 3})
+		r, err := collector.externalClient.Get("validators", []uint64{safeLatestBlockHeight})
 		if err != nil {
 			fmt.Println("Failed to get validators from external endpoint.")
 		}
