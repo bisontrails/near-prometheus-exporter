@@ -237,7 +237,7 @@ func (collector *NodeRpcMetrics) RecordValidators() {
 
 		r, err := collector.externalClient.Get("validators", []uint64{safeLatestBlockHeight})
 		if err != nil {
-			fmt.Println("Failed to get validators from external endpoint.")
+			fmt.Printf("Failed to get validators from external endpoint: %s\n", err.Error())
 		}
 
 		collector.currentValidatorData = r.ValidatorsResult
