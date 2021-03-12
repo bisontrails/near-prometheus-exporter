@@ -232,7 +232,7 @@ func (collector *NodeRpcMetrics) RecordValidators() {
 		// issues with querying seprate pods that may not have the newest block
 		safeLatestBlockHeight := statusResponseExternal.Status.SyncInfo.LatestBlockHeight - 3
 		if err != nil {
-			fmt.Println("Failed to get status from external endpoint.")
+			fmt.Printf("Failed to get status from external endpoint: %s\n", err.Error())
 		}
 
 		r, err := collector.externalClient.Get("validators", []uint64{safeLatestBlockHeight})
